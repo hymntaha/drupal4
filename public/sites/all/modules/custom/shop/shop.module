@@ -1,0 +1,107 @@
+<?php
+
+define('SHOP_FORM_NID',variable_get('shop_form_nid', ''));
+define('SHOP_CODE_PAGER_BREAK',20);
+
+/**
+ * Implements hook_menu().
+ */
+function shop_menu() {
+  $items['admin/shop'] = array(
+    'title' => 'Shop',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('shop_admin_settings_form'),
+    'access arguments' => array('access sonnier settings'),
+    'file' => 'shop.admin.inc',
+  );
+
+  $items['admin/shop/settings'] = array(
+    'title' => 'Shop Settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('shop_admin_settings_form'),
+    'access arguments' => array('access sonnier settings'),
+    'file' => 'shop.admin.inc',
+  );
+
+  $items['admin/shop/code-manager'] = array(
+    'title' => 'Shop Code Manager',
+    'page callback' => 'shop_admin_code_manager',
+    'access arguments' => array('access sonnier settings'),
+    'file' => 'shop.admin.inc',
+  );
+
+  $items['admin/shop/code-manager/%/delete'] = array(
+    'title' => 'Shop Code Delete',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('shop_admin_code_delete_form',3),
+    'access arguments' => array('access sonnier settings'),
+    'file' => 'shop.admin.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function shop_permission() {
+  return array(
+    'access sonnier settings' =>  array(
+      'title' => t('Access Sonnier Admin Settings'),
+      'description' => t(''),
+    ),
+  );
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function shop_form_alter(&$form, &$form_state, $form_id) {
+	if($form_id == 'webform_client_form_'.SHOP_FORM_NID){
+		$form['#attributes']['class'][] = 'shop-form';
+		$form['#validate'][] = 'shop_validate_code';
+	}
+}
+
+function shop_validate_code($form, &$form_state){
+	if(!shop_code_check($form_state['values']['submitted']['certificate_code'],FALSE)){
+		form_set_error('submitted][certificate_code',variable_get('shop_incorrect_code_msg', 'Please enter a valid code which can be found on your gift certificate'));
+	}
+	else if(!shop_code_check($form_state['values']['submitted']['certificate_code'])){
+		form_set_error('submitted][certificate_code',variable_get('shop_expired_code_msg', 'This promotion has expired'));
+	}
+}
+
+function shop_code_check($code, $active = TRUE){
+	$query = db_select('shop_codes','c')->fields('c',array('code'))->condition('code',$code);
+
+	if($active){
+		$query->condition('start',time(),'<=');
+		$query->condition('end',time(),'>=');
+	}
+
+	return $query->execute()->fetchField();
+}
+
+function shop_load_codes($admin = FALSE, $header = array()){
+	$query = db_select('shop_codes','c');
+	if($admin){
+		$query->extend('TableSort')->orderByHeader($header);
+		$query->extend('PagerDefault')->limit(SHOP_CODE_PAGER_BREAK);
+	}
+	return $query->fields('c')->execute();
+}
+
+/**
+ * Implements hook_node_view().
+ */
+function shop_node_view($node, $view_mode, $langcode) {
+  if($node->type == 'product'){
+    if($view_mode == 'full'){
+      $hide_add_to_cart = field_get_items('node', $node, 'field_hide_add_to_cart');
+      if(isset($hide_add_to_cart[0]['value']) && $hide_add_to_cart[0]['value']){
+        unset($node->content['add_to_cart']);
+      }
+    }
+  }
+}

@@ -1,0 +1,45 @@
+<?php
+/**
+ *
+ */
+
+
+
+function footer_block_info(){
+	$blocks['footer_block'] = array(
+		'info'=>"Footer Block",
+	);
+
+	return $blocks;
+}
+
+function footer_block_view($delta){
+	if($delta == "footer_block"){
+
+		$node = menu_get_object();
+		if(isset($node->type) && ($node->type == 'product_landing' || $node->type == 'product')){
+			$site_design_link = l('New York web design','http://avatarnewyork.com/',array('attributes' => array('rel'  => 'external','id' => 'site-design-link','class' => array('last'))));
+		}
+		else{
+			$site_design_link = l('noë & associates','http://www.noeassociates.com/',array('attributes' => array('rel'  => 'external','id' => 'site-design-link','class' => array('last'))));
+		}
+
+		$block['subject'] = "Footer";
+		$block['content'] = array('#theme' => 'footer_block', '#site_design_link' => $site_design_link);
+
+		return $block;
+
+	}
+}
+
+/**
+ * Implements hook_theme().
+ */
+function footer_theme($existing, $type, $theme, $path) {
+  return array(
+    'footer_block' => array(
+      'template' => 'footer-block',
+      'variables' => array('site_design_link' => ''),
+    ),
+  );
+}

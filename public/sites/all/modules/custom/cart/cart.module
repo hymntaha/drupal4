@@ -1,0 +1,936 @@
+<?php
+
+
+/**
+* Implementation of hook_menu().
+*/
+function cart_menu() {
+  $items['admin/store/settings/quotes/courier-zipcodes'] = array(
+    'title' => 'Courier Zipcodes',
+    'description' => 'Manageble courier zipcodes',
+    'type' => MENU_LOCAL_TASK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('administer_courier_zipcodes'),
+    'access arguments' => array('access administration pages'),
+  );
+
+  return $items;
+}
+
+function administer_courier_zipcodes(){
+  $form = array();
+
+  $form['sc_courier_zipcodes'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Courier Zipcodes'),
+    '#default_value' => variable_get('sc_courier_zipcodes'),
+    '#description' => t("Please enter each zipcode separated by a comama."),
+    '#required' => TRUE,
+  );
+
+  return system_settings_form($form);
+}
+
+/**
+ * Implements hook_theme().
+ */
+function cart_theme($existing, $type, $theme, $path) {
+  return array(
+    'cart_subtotal_cell' => array(
+      'variables' => array('build' => array(), 'total' => 0),
+    ),
+  );
+}
+
+function cart_rules_condition_info() {
+  $conditions['courier_zip_code_condition'] = array(
+    'label' => t("Check if Shipping postal code is eligible for courier rate"),
+    'group' => t('Courier Rate'),
+    'base' => 'cart_courier_zip_code_condition',
+    'parameter' => array(
+      'order' => array(
+        'type' => 'uc_order',
+        'label' => t('Order'),
+      ),
+    ),
+  );  
+
+  return $conditions; 
+}
+
+function cart_courier_zip_code_condition($order){
+  if(variable_get('sc_courier_zipcodes')){
+    $eligible_zipcodes = explode(",", variable_get('sc_courier_zipcodes'));
+  }else{
+    $eligible_zipcodes = array();
+  }
+
+  if(in_array($order->delivery_postal_code, $eligible_zipcodes) == TRUE){
+    return TRUE;
+  }else{
+    return FALSE;
+  }
+}
+
+/**
+ * Implements hook_menu_alter().
+ */
+function cart_menu_alter(&$items) {
+  $items['cart']['page callback'] = 'cart_cart_view';
+}
+
+/**
+ * Allows modules to alter the TAPIr table after the rows are populated.
+ *
+ * @param $table
+ *   Table declaration containing header and populated rows.
+ * @param $table_id
+ *   Table ID. Also the function called to build the table declaration.
+ */
+function cart_tapir_table_alter(&$table, $table_id){
+  if ($table_id == 'uc_cart_view_table') {
+
+    $attributes = _cart_tapir_table_get_attributes($table);
+
+  	$table['#columns']['remove'] = array(
+  		'cell' => '',
+  		'weight' => 6,
+  	);
+  	$table['#columns']['image'] = array(
+  		'cell' => 'Item:',
+  		'weight' => 0,
+  	);
+  	$table['#columns']['desc'] = array(
+  		'cell' => '',
+  		'weight' => 1,  		
+  	);
+    /*$table['#columns']['chocolate_type'] = array(
+      'cell' => 'Chocolate:',
+      'weight' => 2,
+    );
+  	$table['#columns']['color'] = array(
+  		'cell' => 'Color:',
+  		'weight' => 2,
+  	);
+   	$table['#columns']['size'] = array(
+  		'cell' => 'Size:',
+  		'weight' => 3,
+  	);*/
+
+    foreach ($attributes as $attribute) {
+      $table['#columns'][$attribute] = array(
+        'cell' => ucwords(str_replace("_", " ", $attribute)),
+        'weight' => 2,
+      );
+    }
+    $table['#columns']['qty'] = array(
+  		'cell' => 'Quantity:',
+  		'weight' => 4,
+  	);
+    $table['#columns']['total'] = array(
+  		'cell' => 'Price:',
+  		'weight' => 5,
+  	);
+  	foreach (element_children($table) as $key) {
+
+      if(isset($table[$key]['desc'])){
+        $table[$key]['desc']['#markup'] = $table[$key]['title']['#markup'];
+      }
+  		if(isset($table[$key]['cart_item_id']['#value'])){
+  			$cart_item = entity_load_single('uc_cart_item',$table[$key]['cart_item_id']['#value']);
+
+        /*$table[$key]['chocolate_type']['#markup'] = '--';
+        $table[$key]['color']['#markup'] = '--';
+        $table[$key]['size']['#markup'] = '--';
+        */
+
+        foreach ($attributes as $attribute) {
+          $table[$key][$attribute]['#markup'] = '--';
+        }
+
+        $table[$key]['remove']['#suffix'] = '<br />'.l('<strong><u>Update</u></strong>','',array('html' => TRUE, 'attributes' => array('class' => array('btn','btn-link','cart-update-link'))));
+
+        if(isset($cart_item->data['attributes'])){
+          foreach($cart_item->data['attributes'] as $aid => $value){
+            $attribute = uc_attribute_load($aid);
+            $attr_table_key = str_replace(" ", "_", strtolower($attribute->name));
+            $table[$key][$attr_table_key] = array(
+              '#markup' => $attribute->options[$value]->name,
+            );
+          }
+        }
+  		}
+  	}
+  }
+}
+
+function _cart_tapir_table_get_attributes(&$table){
+  $attributes = array();
+  foreach (element_children($table) as $key){
+    if(isset($table[$key]['cart_item_id']['#value'])){
+      $cart_item = entity_load_single('uc_cart_item',$table[$key]['cart_item_id']['#value']);
+      if(isset($cart_item->data['attributes'])){
+        foreach($cart_item->data['attributes'] as $aid => $value){
+          $attribute = uc_attribute_load($aid);
+          $attributes[] = str_replace(" ", "_", strtolower($attribute->name));
+        }
+      }
+    }
+  }
+  $attributes = array_unique($attributes);
+  return $attributes;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function cart_form_uc_coupon_form_alter(&$form, &$form_state) {
+  if(isset($form['apply'])){
+    $form['apply']['#value'] = t('Apply');
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function cart_form_uc_cart_checkout_form_alter(&$form, &$form_state) {
+  $form['#prefix'] = '<h3>Checkout</h3>';
+}
+
+/**
+ * Implements hook_element_info_alter().
+ */
+function cart_element_info_alter(&$type) {
+  if (isset($type['uc_address'])) {
+    $type['uc_address']['#process'] = array('cart_process_address_field');
+  }
+}
+
+/**
+ * Displays the cart view page.
+ *
+ * Show the products in the cart with a form to adjust cart contents or go to
+ * checkout.
+ */
+function cart_cart_view() {
+  // Failsafe so that this function only works when called with no arguments.
+  // This prevents the accidental wiping of the cart_order session variable.
+  if (func_num_args() > 0) {
+    return MENU_NOT_FOUND;
+  }
+
+  // Load the array of shopping cart items.
+  $items = uc_cart_get_contents();
+
+  // Display the empty cart page if there are no items in the cart.
+  if (empty($items)) {
+    return array(
+      '#theme' => 'uc_empty_cart',
+    );
+  }
+
+  drupal_add_js(drupal_get_path('module', 'cart').'/cart.js');
+
+  $build = array(
+    array('#markup' => '<h3 class="cart-title">My Bag</h3>'),
+  );
+  // Load through the cart panes...
+  foreach (uc_cart_cart_pane_list($items) as $id => $pane) {
+    // If the pane is enabled...
+    if ($pane['enabled']) {
+      // Add its output to the cart view.
+
+      $build[$id] = $pane['body'];
+    }
+  }
+
+  //$build['cart_form']['#attributes'] = array('class' => array('hidden-xs'));
+
+  // Add a custom cart breadcrumb if specified.
+  if (($text = variable_get('uc_cart_breadcrumb_text', '')) !== '') {
+    $link = l($text, variable_get('uc_cart_breadcrumb_url', '<front>'));
+    drupal_set_breadcrumb(array($link));
+  }
+
+  $last_row = count(element_children($build['cart_form']['items'])) - 1;
+
+  $total['#cell_attributes'] = $build['cart_form']['items'][$last_row]['total']['#cell_attributes'];
+  $total['#markup'] = theme('cart_subtotal_cell',array('build' => $build, 'total' => $build['cart_form']['items'][$last_row]['total']['#price']));
+
+  $build['cart_form']['items'][$last_row]['total'] = $total;
+
+  $build['cart_form']['actions']['#prefix'] = '<div class="form-actions">';
+  $build['cart_form']['actions']['#suffix'] = '</div>';
+
+  return $build;
+}
+
+/**
+ * Implements hook_uc_checkout_pane_alter().
+ */
+function cart_uc_checkout_pane_alter(&$panes) {
+  $panes['cart']['title'] = 'Bag contents';
+}
+
+/**
+ * Implements hook_uc_checkout_pane().
+ */
+function cart_uc_checkout_pane(){
+  $panes['order_summary'] = array(
+    'callback' => 'cart_pane_order_summary',
+    'title' => t('Order summary'),
+    'desc' => t('Order summary'),
+    'weight' => 10,
+  );
+  $panes['gift_wrapping'] = array(
+    'callback' => 'checkout_pane_gift_wrapping',
+    'title' => t('Gift Note'),
+    'desc' => t('Gift Note'),
+    'weight' => 11,
+  );
+
+  return $panes;
+}
+
+/**
+  * Implements hook_uc_order_pane().
+ */
+function cart_uc_order_pane(){
+  $panes['order_pane_gift_wrapping'] = array(
+    'callback' => 'order_pane_gift_wrapping',
+    'title' => t('Gift Note'),
+    'desc' => t('View gift note details'),
+    'weight' => 9,
+    'show' => array('view'),
+  );
+  return $panes;
+}
+
+
+function order_pane_gift_wrapping($op, $order, &$form = NULL, &$form_state = NULL){
+  switch ($op) {
+  case 'view':
+
+    $header = array(t('Gift note?'), t('To'), t('From'), t('Message'));
+    $rows[] = array(
+      array('data' => isset($order->data['gift_wrapping']['gift_note']) ? $order->data['gift_wrapping']['gift_note'] : ''),
+      array('data' => isset($order->data['gift_wrapping']['recipient']) ? $order->data['gift_wrapping']['recipient'] : ''),
+      array('data' => isset($order->data['gift_wrapping']['sender']) ? $order->data['gift_wrapping']['sender'] : ''),
+      array('data' => isset($order->data['gift_wrapping']['message']) ? $order->data['gift_wrapping']['message'] : ''),
+    );
+    $build = array(
+      '#theme' => 'table',
+      '#header' => $header,
+      '#rows' => $rows,
+    );
+
+    return $build;
+  }
+}
+
+function cart_pane_order_summary($op, &$order, $form = NULL, &$form_state = NULL) {
+  switch ($op) {
+    case 'view':
+      $clone = clone $order;
+      $subtotal_delta = 0;
+      foreach($clone->line_items as $subtotal_delta => $line_item){
+        if($line_item['type'] == 'subtotal'){
+          $clone->line_items[$subtotal_delta]['weight'] = 1;
+          break;
+        }
+      }
+
+      foreach($clone->line_items as $delta => $line_item){
+        if($line_item['type'] == 'coupon'){
+          $clone->line_items[$subtotal_delta]['amount'] += $line_item['amount'];
+          $clone->line_items[$delta]['weight'] = 0;
+        }
+
+        if($line_item['type'] == 'shipping'){
+          $clone->line_items[$delta]['weight'] = 2;
+        }
+      }
+
+      return array(
+        'description' => '',
+        'contents' => array('#theme' => 'uc_payment_totals','#order' => $clone),
+      );
+  }
+}
+
+function checkout_pane_gift_wrapping($op, &$order, $form = NULL, &$form_state = NULL) {
+  switch ($op) {
+    case 'view':
+      $description = '';
+      $contents['gift_note'] = array(
+        '#type' => 'select',
+        '#title' => t('Gift Note'),
+        '#options' => array(
+          'No gift note' => 'No gift note',
+          'Complimentary blank gift note' => 'Complimentary blank gift note',
+          'Complimentary custom message' => 'Complimentary custom message',
+        ),
+      );
+      $contents['recipient'] = array(
+        '#type' => 'textfield',
+        '#title' => t('To'),
+      );
+      $contents['sender'] = array(
+        '#type' => 'textfield',
+        '#title' => t('From'),
+      );
+      $contents['message'] = array(
+        '#type' => 'textarea',
+        '#title' => t('Message'),
+      );
+
+      return array('description' => $description, 'contents' => $contents);
+    
+    case 'process':
+      $pane = $form_state['values']['panes']['gift_wrapping'];
+      if($pane['gift_note'] != 'No gift note'){
+        if(empty($pane['recipient'])){
+          form_set_error('panes][gift_wrapping][recipient', t('Please fill out the gift note recipient.'));
+        }
+        if(empty($pane['sender'])){
+          form_set_error('panes][gift_wrapping][sender', t('Please fill out the gift note sender.'));
+        }
+      }
+      $order->data['gift_wrapping'] = $pane;
+      return TRUE;
+
+    case 'review':
+
+      $data = '';
+      $data .= '<div>Gift note? ' . (isset($order->data['gift_wrapping']['gift_note']) ? $order->data['gift_wrapping']['gift_note'] : '') .'</div>';
+      $data .= '<div>To: ' . (isset($order->data['gift_wrapping']['recipient']) ? $order->data['gift_wrapping']['recipient'] : '') .'</div>';
+      $data .= '<div>From: ' . (isset($order->data['gift_wrapping']['sender']) ? $order->data['gift_wrapping']['sender'] : '') .'</div>';
+      $data .= '<div>Message: ' . (isset($order->data['gift_wrapping']['message']) ? $order->data['gift_wrapping']['message'] : '') .'</div>';
+
+      $review[] = array('title' => t('Gift Note'), 'data' => $data);
+      
+      return $review;
+  }
+}
+
+function theme_cart_subtotal_cell($variables){
+  $output = '';
+
+  $build = $variables['build'];
+  $total = $variables['total'];
+
+  $output .= '<div class="right-total-wrapper">';
+  $output .= l('< <strong><u>Continue Shopping</u></strong>',variable_get('uc_continue_shopping_url', ''),array('html' => TRUE, 'attributes' => array('class' => array('continue-shopping'))));
+  $output .= '<div class="coupon-wrapper">';
+  $output .= '<div class="form-type-textfield form-item-code form-item form-group" data-toggle="tooltip" title="" data-original-title="Enter a coupon code and click &quot;Apply to order&quot; below."><label for="edit-code">Enter Promo Code: </label><input class="fake-coupon-input form-control form-text" type="text" id="edit-code" name="code" size="25" maxlength="128"/></div><button class="fake-coupon-apply btn btn-default form-submit">Apply</button>';
+  $output .= '</div></div>';
+  $output .= '<div class="order-summary-wrapper"><div class="order-summary"><h3>Order Summary</h3><span id="subtotal-title"><strong>Order Total:</strong></span>'.theme('uc_price',array('price' => $total))
+  .'<div class="cart-submit">'.theme('button',array('element' => array('#value' => 'Checkout', '#button_type' => 'submit', '#attributes' => array('id' => 'cart-submit-button')))).'</div></div></div>';
+
+  return $output;
+}
+
+
+
+/**
+ * Element process hook for address fields.
+ */
+function cart_process_address_field($element, $form_state) {
+  $element['#tree'] = TRUE;
+  $prefix = $element['#key_prefix'] ? ($element['#key_prefix'] . '_') : '';
+  $weight = uc_store_address_field_weights();
+
+  if (isset($form_state['uc_address'])) {
+    // Use submitted Ajax values.
+    $value = $form_state['uc_address'];
+  }
+  elseif (is_array($element['#value']) || is_object($element['#value'])) {
+    // Use provided default value.
+    $value = (array) $element['#value'];
+  }
+  else {
+    $value = array();
+  }
+
+  $countries = db_query("SELECT country_id, country_name FROM {uc_countries} WHERE version > :version", array(':version' => 0))->fetchAllKeyed();
+  foreach ($countries as $country_id => $country_name) {
+    $countries[$country_id] = t($country_name);
+  }
+  natcasesort($countries);
+
+  // Force the selected country to a valid one, so the zone dropdown matches.
+  if (isset($value[$prefix . 'country']) && !isset($countries[$value[$prefix . 'country']])) {
+    $country_keys = array_keys($countries);
+    $value[$prefix . 'country'] = $country_keys[0];
+  }
+
+  // Iterating on the UcAddress object excludes non-public properties, which
+  // is exactly what we want to do.
+  $address = new UcAddress();
+  foreach ($address as $base_field => $field_value) {
+    $field = $prefix . $base_field;
+    if (!isset($value[$field])) {
+      continue;
+    }
+
+    switch ($base_field) {
+      case 'country':
+        $subelement = array(
+          '#type' => 'select',
+          '#options' => $countries,
+          '#ajax' => array(
+            'callback' => 'uc_store_update_address_field_zones',
+            'wrapper' => 'uc-store-address-' . str_replace('_', '-', $prefix) . 'zone-wrapper',
+            'progress' => array(
+              'type' => 'throbber',
+            ),
+          ),
+          '#element_validate' => array('uc_store_validate_address_field_country'),
+          '#key_prefix' => $element['#key_prefix'],
+        );
+        break;
+
+      case 'zone':
+        $subelement = array(
+          '#prefix' => '<div id="uc-store-address-' . str_replace('_', '-', $prefix) . 'zone-wrapper">',
+          '#suffix' => '</div>',
+        );
+
+        $zones = db_query("SELECT zone_id, zone_name FROM {uc_zones} WHERE zone_country_id = :country", array(':country' => $value[$prefix . 'country']))->fetchAllKeyed();
+        if (!empty($zones)) {
+          natcasesort($zones);
+          $subelement += array(
+            '#type' => 'select',
+            '#options' => $zones,
+            '#empty_value' => 0,
+          );
+        }
+        else {
+          $subelement += array(
+            '#type' => 'hidden',
+            '#value' => 0,
+            '#required' => FALSE,
+          );
+        }
+        break;
+
+      case 'postal_code':
+        $subelement = array(
+          '#type' => 'textfield',
+          '#size' => 10,
+          '#maxlength' => 10,
+        );
+        break;
+
+      case 'phone':
+        $subelement = array(
+          '#type' => 'textfield',
+          '#size' => 16,
+          '#maxlength' => 32,
+        );
+        break;
+
+      default:
+        $subelement = array(
+          '#type' => 'textfield',
+          '#size' => 32,
+        );
+    }
+
+    // Copy JavaScript states from the parent element.
+    if (isset($element['#states'])) {
+      $subelement['#states'] = $element['#states'];
+    }
+
+    // Set common values for all address fields.
+    $label = uc_get_field_name($base_field);
+    $element[$field] = $subelement + array(
+      '#title' => $label ? $label : '&nbsp;',
+      '#default_value' => $value[$field],
+      '#parents' => array_merge(array_slice($element['#parents'], 0, -1), array($field)),
+      '#pre_render' => array('cart_pre_render_address_field'),
+      '#access' => $element['#hidden'] ? FALSE : uc_address_field_enabled($base_field),
+      '#required' => $element['#required'] ? uc_address_field_required($base_field) : FALSE,
+      '#weight' => (isset($weight[$base_field])) ? $weight[$base_field] : 0,
+    );
+  }
+  return $element;
+}
+
+/**
+ * Prerenders address field elements to move the required marker when needed.
+ */
+function cart_pre_render_address_field($element) {
+  if (!empty($element['#required'])) {
+    $element['#title'] = $element['#title'] . ' ' . theme('form_required_marker', $element);
+    unset($element['#required']);
+  }
+  return $element;
+}
+
+/**
+ * Alter payment methods.
+ *
+ * @param $methods
+ *   Array of payment methods passed by reference.  Array is structured like
+ *   the return value of hook_uc_payment_method().
+ */
+function cart_uc_payment_method_alter(&$methods) {
+  $methods['check']['callback'] = 'cart_uc_payment_method_check';
+
+  $title = t('Credit card:').'<br />';
+  $cc_types = array(
+    'visa' => t('Visa'),
+    'mastercard' => t('MasterCard'),
+    'discover' => t('Discover'),
+    'amex' => t('American Express'),
+  );
+  foreach ($cc_types as $type => $label) {
+    if (variable_get('uc_credit_' . $type, TRUE)) {
+      $title .= ' ' . theme('image', array(
+        'path' => drupal_get_path('module', 'cart') . '/images/ico-' . $type . '.jpg',
+        'alt' => $label,
+        'attributes' => array('class' => array('uc-credit-cctype', 'uc-credit-cctype-' . $type)),
+      ));
+    }
+  }
+
+  $methods['credit']['title'] = $title;
+}
+
+/**
+ * Payment method callback for the "Check" payment method.
+ */
+function cart_uc_payment_method_check($op, &$order, $form = NULL, &$form_state = NULL) {
+  switch ($op) {
+    case 'cart-details':
+      $build['instructions'] = array(
+        '#markup' => '<p>'.t('Checks should be made out to:').'</p>',
+      );
+
+      if (!variable_get('uc_check_mailing_street1', FALSE)) {
+        $build['address'] = array(
+          '#markup' => uc_address_format(
+            uc_store_name(),
+            NULL,
+            variable_get('uc_store_company', ''),
+            variable_get('uc_store_street1', ''),
+            variable_get('uc_store_street2', ''),
+            variable_get('uc_store_city', ''),
+            variable_get('uc_store_zone', ''),
+            variable_get('uc_store_postal_code', ''),
+            variable_get('uc_store_country', 840)
+          ),
+          '#prefix' => '<p>',
+          '#suffix' => '</p>',
+        );
+      }
+      else {
+        $build['address'] = array(
+          '#markup' => uc_address_format(
+            variable_get('uc_check_mailing_name', ''),
+            NULL,
+            variable_get('uc_check_mailing_company', ''),
+            variable_get('uc_check_mailing_street1', ''),
+            variable_get('uc_check_mailing_street2', ''),
+            variable_get('uc_check_mailing_city', ''),
+            variable_get('uc_check_mailing_zone', ''),
+            variable_get('uc_check_mailing_postal_code', ''),
+            variable_get('uc_check_mailing_country', 840)
+          ),
+          '#prefix' => '<p>',
+          '#suffix' => '</p>',
+        );
+      }
+
+      $build['policy'] = array(
+        '#markup' => '<p>' . variable_get('uc_check_policy', '') . '</p>'
+      );
+      return $build;
+
+    case 'cart-review':
+      if (!variable_get('uc_check_mailing_street1', FALSE)) {
+        $review[] = array(
+          'title' => t('Mail to'),
+          'data' => uc_address_format(
+            uc_store_name(),
+            NULL,
+            variable_get('uc_store_company', ''),
+            variable_get('uc_store_street1', ''),
+            variable_get('uc_store_street2', ''),
+            variable_get('uc_store_city', ''),
+            variable_get('uc_store_zone', ''),
+            variable_get('uc_store_postal_code', ''),
+            variable_get('uc_store_country', 840)
+          )
+        );
+      }
+      else {
+        $review[] = array(
+          'title' => t('Mail to'),
+          'data' => uc_address_format(
+            variable_get('uc_check_mailing_name', ''),
+            NULL,
+            variable_get('uc_check_mailing_company', ''),
+            variable_get('uc_check_mailing_street1', ''),
+            variable_get('uc_check_mailing_street2', ''),
+            variable_get('uc_check_mailing_city', ''),
+            variable_get('uc_check_mailing_zone', ''),
+            variable_get('uc_check_mailing_postal_code', ''),
+            variable_get('uc_check_mailing_country', 840)
+          )
+        );
+      }
+      return $review;
+
+    case 'order-view':
+      $build = array('#suffix' => '<br />');
+
+      $result = db_query('SELECT clear_date FROM {uc_payment_check} WHERE order_id = :id ', array(':id' => $order->order_id));
+      if ($clear_date = $result->fetchField()) {
+        $build['#markup'] = t('Clear Date:') . ' ' . format_date($clear_date, 'uc_store');
+      }
+      else {
+        $build['#markup'] = l(t('Receive Check'), 'admin/store/orders/' . $order->order_id . '/receive_check');
+      }
+      return $build;
+
+    case 'customer-view':
+      $build = array();
+      $result = db_query('SELECT clear_date FROM {uc_payment_check} WHERE order_id = :id ', array(':id' => $order->order_id));
+      if ($clear_date = $result->fetchField()) {
+        $build['#markup'] = t('Check received') . '<br />' .
+          t('Expected clear date:') . '<br />' . format_date($clear_date, 'uc_store');
+      }
+      return $build;
+
+    case 'settings':
+      $form['check_address_info'] = array(
+        '#markup' => '<div>' . t('Set the mailing address to display to customers who choose this payment method during checkout.') . '</div>',
+      );
+      $form['uc_check_mailing_name'] = uc_textfield(t('Contact'), variable_get('uc_check_mailing_name', ''), FALSE, t('Direct checks to a person or department.'), 128);
+      $form['uc_check_address'] = array(
+        '#type' => 'uc_address',
+        '#default_value' => array(
+          'uc_check_mailing_company' => variable_get('uc_check_mailing_company', ''),
+          'uc_check_mailing_street1' => variable_get('uc_check_mailing_street1', ''),
+          'uc_check_mailing_street2' => variable_get('uc_check_mailing_street2', ''),
+          'uc_check_mailing_city' => variable_get('uc_check_mailing_city', ''),
+          'uc_check_mailing_zone' => variable_get('uc_check_mailing_zone', ''),
+          'uc_check_mailing_country' => isset($form_state['values']['uc_check_mailing_country']) ? $form_state['values']['uc_check_mailing_country'] : variable_get('uc_check_mailing_country', ''),
+          'uc_check_mailing_postal_code' => variable_get('uc_check_mailing_postal_code', ''),
+        ),
+        '#required' => FALSE,
+        '#key_prefix' => 'uc_check_mailing',
+      );
+      $form['uc_check_policy'] = array(
+        '#type' => 'textarea',
+        '#title' => t('Check payment policy', array(), array('context' => 'cheque')),
+        '#description' => t('Instructions for customers on the checkout page.'),
+        '#default_value' => variable_get('uc_check_policy', t('Personal and business checks will be held for up to 10 business days to ensure payment clears before an order is shipped.')),
+        '#rows' => 3,
+      );
+      return $form;
+  }
+}
+
+function cart_order_get_mandatory_shipping($order){
+  $mandatory_shipping = array();
+
+  foreach ($order->products as $product) {
+    if(isset($product->field_ups_shipping_method['und'][0]['value'])){
+      $mandatory_shipping[] = $product->field_ups_shipping_method['und'][0]['value'];
+    }
+  }
+
+  return $mandatory_shipping;
+}
+
+/**
+ * Implements hook_uc_quote_assemble_quotes_alter().
+ */
+function cart_uc_quote_assemble_quotes_alter(&$quote_data,&$order){
+  
+  $mandatory_shipping = cart_order_get_mandatory_shipping($order);
+
+  /**
+   * Business Rule: unset all ups shipping quotes if it's not the mandatory ups shipping quote
+   */
+
+  if(!empty($mandatory_shipping)){
+    foreach ($quote_data['ups'] as $delta => $quote) {
+      if(!in_array($quote['label'], $mandatory_shipping)){
+        unset($quote_data['ups'][$delta]);
+      }
+    }
+  }
+
+
+  /**
+   * Business Rule: choose the earliest shipping quote (which happens to be the priciest and the last item in array)
+   */
+
+  $counter = 0;
+
+  if(!empty($mandatory_shipping) && count($quote_data['ups']) > 1){
+    foreach ($quote_data['ups'] as $delta => $quote){
+      if($counter < count($quote_data['ups']) - 1 ){
+        unset($quote_data['ups'][$delta]);
+      }
+      $counter++;
+    }
+  }
+
+  /**
+   * Business Rule: unset all flat rate shipping quotes if there's mandatory shipping on one of the products
+   * Update: do not remove the flate rate option if there is only one ups shipping method left https://avatarnewyork.mydonedone.com/issuetracker/projects/8313/issues/112
+   */
+
+  if(!empty($mandatory_shipping) && count($quote_data['ups']) > 1){
+    unset($quote_data['flatrate_1']);
+  }
+
+  /**
+   * Business Rule: Free UPS Ground
+   */
+  if(isset($quote_data['ups']['03']) && cart_is_free_ups_ground()){
+    $quote_data['ups']['03']['rate'] = 0;
+    $quote_data['ups']['03']['format'] = '$0.00';
+  }
+
+}
+
+/**
+ * Implements hook_uc_order().
+ */
+
+function cart_uc_order($op, $order, $arg2) {
+  switch ($op) {
+    case 'presave':
+      // using presave as taxes are calculated during save
+      $line_item_id = FALSE;
+      if (!is_array($order->line_items)) {
+        $order->line_items = array();
+      }
+      else {
+        foreach ($order->line_items as $index => $line_item) {
+          if ($line_item['type'] == 'additional_shipping_fee') {
+            $line_item_id = $line_item['line_item_id'];
+            break;
+          }
+        }
+      }
+
+      if ($line_item_id === FALSE) {
+        $additional_fee = 0;
+        foreach ($order->products as $product) {
+          if(isset($product->field_additonal_shipping_cost['und'][0]['value'])){
+            $additional_fee += $product->field_additonal_shipping_cost['und'][0]['value'];
+          }
+        }
+
+        $order->line_items[] = uc_order_line_item_add($order->order_id, 'additional_shipping_fee', 'Additional Shipping Fee', $additional_fee, 3);
+      }
+      else {
+        $additional_fee = 0;
+        foreach ($order->products as $product) {
+          if(isset($product->field_additonal_shipping_cost['und'][0]['value'])){
+            $additional_fee += $product->field_additonal_shipping_cost['und'][0]['value'];
+          }
+        }
+
+        uc_order_update_line_item($line_item_id, 'Additional Shipping Fee', $additional_fee, 3);
+
+      }
+      break;
+  }
+}
+
+/**
+ * Implements hook_uc_quote_action_get_quote_alter().
+ */
+function cart_uc_quote_action_get_quote_alter(&$products, $order, $method){
+
+  /**
+   * Business Rule: If there is at least one mandatory shipping item in the cart and there is free ups ground shipping, do not pass
+   *  non-mandatory shipping for the ups quote generation.
+   */  
+  if($method['id'] == 'ups' && cart_is_free_ups_ground()){
+    $mandatory_shipping = cart_order_get_mandatory_shipping($order);
+    if(!empty($mandatory_shipping)){
+      foreach($products as $delta => $product){
+        if(!isset($product->field_ups_shipping_method['und'][0]['value'])){
+          unset($products[$delta]);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function cart_form_uc_ups_admin_settings_alter(&$form, &$form_state) {
+  $form['cart_shipping_discounts'] = array(
+    '#type' => 'fieldset',
+    '#title' => 'UPS Shipping Discounts',
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#group' => 'ups-settings',
+  );
+
+  $form['cart_shipping_discounts']['free_ups_ground'] = array(
+    '#type' => 'fieldset',
+    '#title' => 'Free UPS Ground',
+    '#collapsible' => TRUE,
+    '#description' => 'Promo starts 12:00 AM on the start date and ends at 12:00 AM on the end date.',
+  );
+
+  $form['cart_shipping_discounts']['free_ups_ground']['uc_ups_free_ground_start'] = array(
+    '#type' => 'date_popup',
+    '#title' => 'Free UPS Ground Start Date',
+    '#date_format' => 'm/d/Y',
+    '#default_value' => variable_get('uc_ups_free_ground_start', ''),
+  );
+
+  $form['cart_shipping_discounts']['free_ups_ground']['uc_ups_free_ground_end'] = array(
+    '#type' => 'date_popup',
+    '#title' => 'Free UPS Ground End Date',
+    '#date_format' => 'm/d/Y',
+    '#default_value' => variable_get('uc_ups_free_ground_end', ''),
+  );
+
+  $form['#validate'][] = 'cart_form_uc_ups_admin_settings_validate';
+  $form['#submit'][] = 'cart_form_uc_ups_admin_settings_submit';
+}
+
+function cart_form_uc_ups_admin_settings_validate($form, &$form_state){
+  if(!empty($form_state['values']['uc_ups_free_ground_start']) && !empty($form_state['values']['uc_ups_free_ground_end'])){
+    if(strtotime($form_state['values']['uc_ups_free_ground_end']) < strtotime($form_state['values']['uc_ups_free_ground_start'])){
+      form_set_error('uc_ups_free_ground_start','UPS Free Ground Start Date can\'t be greater than the End Date.');
+    }
+  }
+}
+
+function cart_form_uc_ups_admin_settings_submit($form, &$form_state){
+  variable_set('uc_ups_free_ground_start', $form_state['values']['uc_ups_free_ground_start']);
+  variable_set('uc_ups_free_ground_end', $form_state['values']['uc_ups_free_ground_end']);
+}
+
+function cart_is_free_ups_ground(){
+  $now = strtotime('now');
+  $ups_ground_free_start = strtotime(variable_get('uc_ups_free_ground_start', ''));
+  $ups_ground_free_end = strtotime(variable_get('uc_ups_free_ground_end', ''));
+
+  if(!empty($ups_ground_free_start) && !empty($ups_ground_free_end)){
+    return $now >= $ups_ground_free_start && $now <= $ups_ground_free_end;
+  }
+  else if(!empty($ups_ground_free_start)){
+    return $now >= $ups_ground_free_start;
+  }
+  else if(!empty($ups_ground_free_end)){
+    return $now <= $ups_ground_free_end;
+  }
+
+  return FALSE;
+}

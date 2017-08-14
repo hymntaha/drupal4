@@ -1,0 +1,111 @@
+<?php
+
+
+/**
+ * Implements hook_theme().
+ */
+function sc_misc_theme($existing, $type, $theme, $path) {
+  return array(
+    'shop_landing_block' => array(
+      'variables' => array('data' => array()),
+      'template' => 'shop_landing_block',
+    ),
+  );
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function sc_misc_block_info() {
+	$blocks['shop_landing_block'] = array(
+		'info' => t('Shop Landing Block'),
+	);
+  	return $blocks;
+}
+
+/**
+ * Implements hook_block_configure().
+ */
+function sc_misc_block_configure($delta = '') {
+  	$form = array();
+  	if ($delta == 'shop_landing_block'){
+
+  		for($i=1; $i < 13; $i++){
+	    	$form['image'.$i] = array(
+				'#type' => 'managed_file',
+				'#title' => t('Upload Image'),
+				'#size' => 40,
+				'#upload_location' => 'public://',
+				'#default_value' => variable_get('image'.$i),
+	    	);
+			$form['text'.$i] = array(
+				'#type' => 'textfield',
+				'#title' => t('Text'),
+				'#default_value' => variable_get('text'.$i),
+			);
+			$form['image_url'.$i] = array(
+				'#type' => 'textfield',
+				'#title' => t('URL'),
+				'#description' => t('The URL to link to.'),
+				'#default_value' => variable_get('image_url'.$i),
+			);
+  		}
+
+  	}
+  	return $form;
+}
+
+
+/**
+ * Implements hook_block_save().
+ */
+function sc_misc_block_save($delta = '', $edit = array()) {
+	if ($delta == 'shop_landing_block'){
+		for($i=1; $i < 13; $i++){
+			// Storing the file id
+			variable_set('image'.$i, $edit['image'.$i]);
+			$file = file_load(variable_get('image'.$i, $edit['image'.$i]));
+			if (is_object($file)) {
+				$file->status = FILE_STATUS_PERMANENT;
+				file_save($file);
+				// Get the bid so I can log this in file_usage table.
+		  		$bid = db_query("SELECT bid FROM {block} WHERE module = :module AND delta = :delta", array(':module' => 'sc_misc', ':delta' => $delta))->fetchField();
+		  		file_usage_add($file, 'sc_misc', 'block', $bid);
+			}
+			variable_set('text'.$i, $edit['text'.$i]);
+			variable_set('image_url'.$i, $edit['image_url'.$i]);
+		}
+	}
+}
+
+
+/**
+ * Implements hook_block_view().
+ */
+function sc_misc_block_view($delta = '') {
+  	$block = array();
+
+  	switch ($delta) {
+    	case 'shop_landing_block':
+    		$data = array();
+
+	    	for($i=1; $i < 13; $i++){
+	    		$object = array();
+	      		$object['image'] = file_load(variable_get('image'.$i));
+	      		$object['text'] = variable_get('text'.$i);
+	      		$object['url'] = variable_get('image_url'.$i);
+	      		$data[] = $object;
+	      	}
+	      	
+			$block['subject'] = t('');
+			$block['content'] = _display_block($data);
+		break;
+  	}
+
+  	return $block;
+}
+
+function _display_block($data){
+	$data = array_chunk($data, 3);
+	return theme('shop_landing_block', array('data' => $data));
+}

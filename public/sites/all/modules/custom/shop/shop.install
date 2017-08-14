@@ -1,0 +1,33 @@
+<?php
+
+/**
+ * Implements hook_schema().
+ */
+function shop_schema() {
+  $schema['shop_codes'] = array(
+    'description' => 'Codes for Shop form',
+    'fields' => array(
+      'code' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'start' => array(
+      	'type' => 'int',
+      	'unsigned' => TRUE,
+      	'not null' => TRUE,
+      ),
+      'end' => array(
+      	'type' => 'int',
+      	'unsigned' => TRUE,
+      	'not null' => TRUE,
+      ),
+    ),
+    'indexes' => array(
+      'start' => array('start'),
+      'end' => array('end'),
+    ),
+    'primary key' => array('code'),
+  );
+  return $schema;
+}

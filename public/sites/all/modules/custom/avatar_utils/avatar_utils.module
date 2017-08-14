@@ -1,0 +1,209 @@
+<?php
+/**
+ *
+ */
+
+/**
+ * @see hook_permission().
+ */
+function avatar_utils_permission() {
+	$perms = array(
+		'access sonnier-castle settings' => array(
+			'title' => t('Access sonnier-castle settings'),
+		),
+	);
+	return $perms;
+}
+
+function avatar_utils_menu(){
+
+	$items['admin/sonnier-castle'] = array(
+		'title' => 'sonnier-castle Settings',
+		'description' => 'Manage sonnier-castle Settings',
+		'page callback' => 'avatar_utils_settings_page',
+		'access arguments' => array('access sonnier-castle settings'),
+	);
+
+	$items['page404'] = array(
+		'title'	=> "Page Not Found",
+		'description' =>"Page Not Found",
+		'page callback'=>"avatar_utils_404",
+		'access arguments' => array('access content'),
+	);
+
+
+	return $items;
+}
+
+function avatar_utils_404(){
+	$img_url = base_path().path_to_theme()."/img/404-image.png";
+
+	return <<<EOL
+<div class="content-404">
+	<div class="image-404"><img src="$img_url" alt="not-found" /></div>
+	<div class="title-404">404 Error</div>
+	<div class="text-404">
+The page you requested could not be found.<br/>
+	</div>
+</div>
+EOL;
+
+
+
+}
+
+function avatar_utils_settings_page(){
+
+
+	return "Nothing Here";
+}
+
+
+
+function pr($arr, $bg_color = '#F1F6FA', $txt_color = '#000000') {
+	echo sprintf('<pre style="background-color: %s; color: %s;">', $bg_color, $txt_color);
+	if($arr) {
+		print_r($arr);
+	}
+	else {
+		var_dump($arr);
+	}
+	echo '</pre>';
+}
+
+function prr($arr,$bg_color = '#F1F6FA', $txt_color = '#000000'){
+	$ret =  sprintf('<pre style="background-color: %s; color: %s;">', $bg_color, $txt_color);
+	$ret .= print_r($arr, true);
+	$ret .= "</pre>";
+	return $ret;
+}
+
+function format_bytes($size) {
+	$units = array(' B', ' KB', ' MB', ' GB', ' TB');
+	for ($i = 0; $size >= 1024 && $i < 4; $i++) $size /= 1024;
+	return round($size, 2).$units[$i];
+}
+
+function avatar_util_theme() {
+	$themes['admin_tabs'] = array(
+		'template' => 'admin_tabs',
+		'arguments' => array(
+			'node' => null,
+			'tabs' => array(
+				'view' => true,
+				'edit' => true,
+				'clone' => false,
+				'extra' => array(),
+			),
+		),
+	);
+
+	return $themes;
+}
+
+/*
+ * @see http://www.php.net/manual/en/function.in-array.php#101132
+ */
+function in_arrayi($needle, $haystack) {
+	for($h = 0 ; $h < count($haystack) ; $h++)
+	{
+		$haystack[$h] = strtolower($haystack[$h]);
+	}
+	return in_array(strtolower($needle),$haystack);
+}
+
+function is_local() {
+	return stristr($_SERVER['HTTP_HOST'], 'avatarnewyork.com') ? true : false;
+}
+
+
+/**
+ * Mail a message easier than setting up a hook_mail.
+ *
+ * Gotten from: http://www.midwesternmac.com/blogs/jeff-geerling/wrapper-function-simple
+ * Referenced from: http://api.drupal.org/api/drupal/includes--mail.inc/function/drupal_mail/7#comment-23958
+ *
+ * @param $to
+ * @param $subject
+ * @param $body
+ * @param null $from
+ * @param null $module
+ * @param null $key
+ * @return bool
+ */
+function avatar_easy_mail($to, $subject, $body, $from = null, $module=null, $key=null){
+	$my_module = $module ? $module : 'custom';
+	$my_mail_token = $key ? $key : microtime();
+	$from = $from ? $from : variable_get('site_mail', 'My Email Address <example@example.com>');
+
+	$body = is_array($body) ? $body : array($body);
+
+
+	$message = array(
+		'id' => $my_module . '_' . $my_mail_token,
+		'to' => $to,
+		'subject' => $subject,
+		'body' =>$body,
+		'headers' => array(
+			'From' => $from,
+			'Sender' => $from,
+			'Return-Path' => $from,
+		),
+	);
+	$system = drupal_mail_system($my_module, $my_mail_token);
+	$message = $system->format($message);
+	if ($system->mail($message)) {
+		return TRUE;
+	}
+	else {
+		return FALSE;
+	}
+
+
+}
+
+
+function avatar_util_ip_in_array($ip_addr_array, $user_ip_address) {
+	foreach ( $ip_addr_array as $ip_address ) {
+		if ( trim($user_ip_address) == trim($ip_address) ) {
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+function avatar_util_get_file_list($dir) {
+	# array to hold return value
+	$retval = array();
+	# add trailing slash if missing
+	if (substr($dir, -1) != "/") $dir .= "/";
+	# open pointer to directory and read list of files
+	$d = @dir($dir);
+	if (!empty($d)) {
+		while (false !== ($entry = $d->read())) {
+			# skip hidden files
+			if ($entry[0] == ".") {
+				continue;
+			}
+			if (is_dir("$dir$entry")) {
+				$retval[] = array(
+					"name" => "$dir$entry/",
+					"type" => filetype("$dir$entry"),
+					"size" => 0,
+					"lastmod" => filemtime("$dir$entry")
+				);
+			}
+			elseif (is_readable("$dir$entry")) {
+				$retval[] = array(
+					"name" => "$dir$entry",
+					//"type" => mime_content_type("$dir$entry"),
+					"type" => 'file',
+					"size" => filesize("$dir$entry"),
+					"lastmod" => filemtime("$dir$entry")
+				);
+			}
+		}
+		$d->close();
+	}
+	return $retval;
+}

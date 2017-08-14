@@ -1,0 +1,19 @@
+name = Sonnier Castle theme
+description = Theme for the sollier and castle site
+package = Sonnier Castle
+version = 1.0
+core = 7.x
+
+scripts[] = js/main.js
+scripts[] = js/jquery.cycle.all.js
+
+stylesheets[all][] = css/style.less
+stylesheets[print][] = css/print.css
+
+regions[header] = Header
+regions[page_top] = Page top
+regions[page_bottom] = Page bottom
+
+regions[content] = Content
+
+regions[footer] = Footer

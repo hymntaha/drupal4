@@ -1,0 +1,5 @@
+name = Shop
+description = Shop Page
+core = 7.x
+package = Sonnier Castle
+version = 7.x-1.0

@@ -1,0 +1,5 @@
+name = Sonnier and Castle Misc Features
+description = Misc Features
+core = 7.x
+package = Sonnier Castle
+version = 7.x-1.0

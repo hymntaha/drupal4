@@ -1,0 +1,67 @@
+<?php
+/**
+ *
+ */
+
+function press_menu(){
+
+	$items['press'] = array(
+		'title'=>'Press',
+		'description'=>"Press Page",
+		'page callback'=>'press_page',
+		'access arguments'=>array("access content"),
+	);
+
+	return $items;
+}
+
+
+function press_page(){
+
+
+	drupal_add_js(drupal_get_path("theme", "sc_bs")."/js/jquery.masonry.min.js");
+
+
+	$query = new EntityFieldQuery();
+	$query->entityCondition("entity_type", "node")
+		->entityCondition('bundle', 'press')
+		->propertyCondition('status', "0", ">")
+		->propertyOrderBy('sticky', "desc")
+		->fieldOrderBy('field_weight', "value", "asc")
+		->propertyOrderBy('created', "desc");
+
+	$results = $query->execute();
+	$nodes = array();
+	if(!empty($results['node'])){
+		$nodes = node_load_multiple(array_keys($results['node']));
+	}
+
+	$output = array();
+
+	$output['items'] = array(
+		'#prefix'=>'<div class="press-items clearfix">',
+		'#suffix'=>'</div>',
+
+	);
+
+	foreach($nodes as $node){
+		$output['items'][] = node_view($node, "teaser");
+	}
+
+	$masonry_js = <<<EOL
+<script type="text/javascript">
+jQuery('.press-items').masonry({
+  itemSelector: '.node-press-teaser',
+  gutterWidth: 30
+});
+</script>
+EOL;
+
+	$output['masonry']= array(
+		'#weight'=>100000,
+		'#markup'=>$masonry_js
+	);
+
+
+	return $output;
+}

@@ -1,0 +1,101 @@
+.styled-select-wrap {
+	display: inline-block;
+}
+
+#page .ui-selectmenu {
+background:transparent url(../img/dropdown-bg.png) left top no-repeat;
+	border-radius: 0px;
+	-webkit-border-radius: 0px;
+	border:none;
+	height: 32px;
+  padding-left: 2px;
+}
+
+#page .ui-selectmenu-status{
+	margin-left: 5px;
+	background:transparent url(../img/dropdown-bg.png) right top no-repeat;
+	height: 24px;
+	color: #000;
+	font-family: Times, Times New Roman, serif;
+	font-size: 14px;
+	line-height: 24px;
+  padding-right: 26px;
+}
+
+
+#page .form-disabled .ui-selectmenu,
+#page .form-disabled .ui-selectmenu-status{
+	background-image: url(../img/dropdown-bg.png);
+}
+
+#page .ui-selectmenu.error,
+#page .error .ui-selectmenu-status{
+	background-image: url(../img/dropdown-bg.png);
+}
+
+#page .ui-selectmenu-icon {
+	background-image: url(../img/dropdown-bg.png);
+	background-position: left bottom;
+	display:none;
+	height: 5px;
+	width: 9px;
+	margin-top:-2px;
+	right: 10px;
+}
+
+#page .ui-state-hover .ui-selectmenu-icon,
+#page .ui-state-active .ui-selectmenu-icon {
+	background-position: left bottom;
+	display:none;
+}
+
+.ui-selectmenu-open {
+	z-index: 10000 !important;
+}
+
+.ui-selectmenu-open .ui-selectmenu-menu-dropdown  {
+	z-index: 10000 !important;
+	border-bottom-right-radius: 0px;
+	-moz-border-radius-bottomright: 0px;
+	-webkit-border-bottom-right-radius: 0px;
+	border-bottom-left-radius: 0px;
+	-moz-border-radius-bottomleft: 0px;
+	-webkit-border-bottom-left-radius: 0px;
+	border: solid 1px #e2e2e2;
+	padding:0px;
+	width: auto !important;
+}
+
+.ui-selectmenu-open .ui-selectmenu-menu-dropdown li {
+	margin-bottom: 0px;
+}
+
+.ui-selectmenu-menu-dropdown li a {
+	color: #000;
+	font-family:Times, Times New Roman, serif;
+	font-size: 14px;
+	line-height: 24px;
+	white-space: nowrap;
+  padding-left: 10px;
+}
+
+.ui-selectmenu-menu-dropdown  .ui-selectmenu-item-selected {
+	background-color: #fff;
+}
+
+.ui-selectmenu-menu-dropdown  .ui-selectmenu-item-focus {
+	background: none;
+	background-color: #fff;
+	border:solid 1px #fff;
+
+}
+.ui-selectmenu-menu-dropdown  .ui-selectmenu-item-selected a,
+.ui-selectmenu-menu-dropdown  .ui-selectmenu-item-focus a {
+	color: #000;
+}
+
+
+#edit-submitted-inquiry-type {
+	display:block;
+	width: 100%;
+}

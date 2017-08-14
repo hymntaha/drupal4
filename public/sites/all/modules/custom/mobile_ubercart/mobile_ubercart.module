@@ -1,0 +1,308 @@
+<?php
+
+/**
+ * Implements hook_theme().
+ */
+function mobile_ubercart_theme($existing, $type, $theme, $path){
+  return array(
+      'mobile_uc_cart_view_form' => array(
+          'render element' => 'form',
+      ),
+      'mobile_uc_cart_review' => array(
+          'variables' => array('items' => array(), 'show_subtotal' => TRUE, 'op' => array()),
+      ),
+      'custom_uc_cart_review_table' => array(
+        'variables' => array('items' => array(), 'show_subtotal' => TRUE),
+      ),
+  );
+}
+
+/**
+ * Implements hook_uc_cart_pane().
+ */
+function mobile_ubercart_uc_cart_pane($items) {
+  $body = array();
+
+  if (!is_null($items)) {
+    $body = drupal_get_form('uc_cart_view_form', $items, 'mobile') + array(
+      '#prefix' => '<div id="mobile-cart-form-pane">',
+      '#suffix' => '</div>',
+    );
+  }
+
+  $panes['mobile_cart_form'] = array(
+    'title' => t('Mobile cart form'),
+    'enabled' => TRUE,
+    'weight' => 0,
+    'body' => $body,
+  );
+
+  return $panes;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function mobile_ubercart_form_uc_cart_view_form_alter(&$form, &$form_state, &$items = NULL){
+	
+	if(@$form_state['build_info']['args'][1] == 'mobile'){
+		$form['items']['#type'] = 'item';
+
+	  $i = 0;
+
+	  $display_items = entity_view('uc_cart_item', $form_state['build_info']['args'][0], 'cart');
+	  foreach (element_children($display_items['uc_cart_item']) as $key) {
+	    $display_item = $display_items['uc_cart_item'][$key];
+	    if (count(element_children($display_item))) {
+	    	
+	    	$display_item['#weight'] = 0;
+	    	$display_item['qty']['#weight'] = 1;
+	    	$display_item['remove']['#weight'] = 2;
+        /*$display_item['remove']['#prefix'] = '<div class="cart-actions">'. l('Update','',array('html' => TRUE, 'attributes' => array('class' => array('btn','btn-link','cart-update-link'))));
+        $display_item['remove']['#suffix'] = '</div>';*/
+	    	
+	      $form['items'][$i] = $display_item;
+	      $form['items'][$i]['image'] = uc_product_get_picture($display_item['nid']['#value'], 'uc_cart');
+
+	      $description = $display_item['title']['#markup'] . $display_item['description']['#markup'];
+
+	      $form['items'][$i]['desc']['#markup'] = '<div class="description">'.$description.'</div>';
+
+
+	      if (isset($form['items'][$i]['remove'])) {
+	        // Backward compatibility with old checkbox method.
+	        if ($form['items'][$i]['remove']['#type'] == 'checkbox') {
+	          $form['items'][$i]['remove'] = array('#type' => 'submit', '#value' => t('Remove'));
+	        }
+
+	        $form['items'][$i]['remove']['#name'] = 'remove-' . $i;
+	      }
+
+	      $form['items'][$i]['title']['#type'] = 'value';
+	      $form['items'][$i]['description']['#type'] = 'value';
+
+	      if (empty($display_item['qty'])) {
+	        $form['items'][$i]['qty'] = array(
+	          '#type' => 'hidden',
+	          '#value' => 0,
+	        );
+	      }
+
+	      $form['items'][$i]['total'] = array(
+	        '#theme' => 'uc_price',
+	        '#price' => $display_item['#total'],
+	      );
+	      if (!empty($display_item['#suffixes'])) {
+	        $form['items'][$i]['total']['#suffixes'] = $display_item['#suffixes'];
+	      }
+	    }
+	    $i++;
+	  }
+
+		$form['#theme'] = 'mobile_uc_cart_view_form';
+	}
+}
+
+
+
+
+function theme_mobile_uc_cart_view_form($variables){
+  $form = &$variables['form'];
+
+  $form['items']['#attributes'] = array('class' => array('row'));
+
+  $output = '<div class="visible-xs">';
+
+	$output .= drupal_render_children($form);
+	$output .= '</div>';
+  return $output;
+}
+
+
+/**
+ * Implements hook_uc_checkout_pane().
+ */
+
+function mobile_ubercart_uc_checkout_pane() {
+  $panes['mobile_cart'] = array(
+    'callback' => 'uc_checkout_pane_cart_mobile',
+    'title' => t('Bag Contents'),
+    'desc' => t("Display the contents of a customer's shopping cart."),
+    'weight' => 1,
+    'process' => FALSE,
+    'collapsible' => FALSE,
+  );
+  return $panes;
+}
+
+function uc_checkout_pane_cart_mobile($op, $order, $form = NULL, &$form_state = NULL) {
+  switch ($op) {
+    case 'view':
+      $contents['cart_review_table'] = array(
+        '#theme' => 'mobile_uc_cart_review',
+        '#items' => $order->products,
+        '#weight' => variable_get('uc_pane_cart_field_cart_weight', 2),
+      );
+      return array('contents' => $contents, 'next-button' => FALSE);
+
+    case 'review':
+      $review[] = theme('mobile_uc_cart_review', array('items' => $order->products, 'show_subtotal' => FALSE, 'op' => $op));
+      return $review;
+  }
+}
+
+
+function theme_mobile_uc_cart_review($variables){
+
+  $items = $variables['items'];
+  $show_subtotal = $variables['show_subtotal'];
+
+  $subtotal = 0;
+  $display_items = uc_order_product_view_multiple($items);
+
+  $output = '<div class="visible-xs">';
+
+  if (!empty($display_items['uc_order_product'])) {
+
+    foreach (element_children($display_items['uc_order_product']) as $key) {
+
+      $display_item = $display_items['uc_order_product'][$key];
+
+      $subtotal += $display_item['total']['#price'];
+
+      $display_item['qty']['#markup'] = '<div class="quantity">QTY ' . $display_item['qty']['#qty'] . '</div>';
+
+      $output .= $display_item['product']['#markup'];
+      $output .= uc_currency_format($display_item['price']['#price']);
+      $output .= $display_item['qty']['#markup'];
+
+    }
+  }
+
+  $output .= '<div class="subtotal"><label>Subtotal:</label> ' . uc_currency_format($subtotal) . '</div>';
+
+  $output .= '</div>';
+
+ 	return $output;
+}
+
+
+function mobile_ubercart_page_alter(&$page){
+
+  if(isset($page['content']['system_main']['panes']['cart'])){
+    $page['content']['system_main']['panes']['cart']['#attributes']['class'] = array('hidden-xs');
+    $page['content']['system_main']['panes']['mobile_cart']['#attributes']['class'] = array('visible-xs');
+  }
+
+  if(isset($page['content']['system_main']['cart_form'])){
+    $page['content']['system_main']['cart_form']['#attributes']['class'] = array('hidden-xs');
+  }
+}
+
+/**
+ * Alters checkout pane definitions.
+ *
+ * @param $panes
+ *   Array with the panes information as defined in hook_uc_checkout_pane(),
+ *   passed by reference.
+ */
+function mobile_ubercart_uc_checkout_pane_alter(&$panes) {
+  $panes['cart']['callback'] = 'mobile_uc_checkout_pane_cart';
+
+}
+
+function mobile_uc_checkout_pane_cart($op, $order, $form = NULL, &$form_state = NULL) {
+  switch ($op) {
+    case 'view':
+      $contents['cart_review_table'] = array(
+        '#theme' => 'uc_cart_review_table',
+        '#items' => $order->products,
+        '#weight' => variable_get('uc_pane_cart_field_cart_weight', 2),
+      );
+      return array('contents' => $contents, 'next-button' => FALSE);
+
+    case 'review':
+      $review[] = theme('custom_uc_cart_review_table', array('items' => $order->products, 'show_subtotal' => FALSE));
+      return $review;
+  }
+}
+
+
+/**
+ * Formats the cart contents table on the checkout page.
+ *
+ * @param $variables
+ *   An associative array containing:
+ *   - show_subtotal: TRUE or FALSE indicating if you want a subtotal row
+ *     displayed in the table.
+ *   - items: An associative array of cart item information containing:
+ *     - qty: Quantity in cart.
+ *     - title: Item title.
+ *     - price: Item price.
+ *     - desc: Item description.
+ *
+ * @return
+ *   The HTML output for the cart review table.
+ *
+ * @ingroup themeable
+ */
+function theme_custom_uc_cart_review_table($variables) {
+  $items = $variables['items'];
+  $show_subtotal = $variables['show_subtotal'];
+
+  $subtotal = 0;
+
+  // Set up table header.
+  $header = array(
+    array('data' => theme('uc_qty_label'), 'class' => array('qty')),
+    array('data' => t('Products'), 'class' => array('products')),
+    array('data' => t('Price'), 'class' => array('price')),
+  );
+
+  // Set up table rows.
+  $display_items = uc_order_product_view_multiple($items);
+  if (!empty($display_items['uc_order_product'])) {
+    foreach (element_children($display_items['uc_order_product']) as $key) {
+      $display_item = $display_items['uc_order_product'][$key];
+      $subtotal += $display_item['total']['#price'];
+      $rows[] = array(
+        array('data' => $display_item['qty'], 'class' => array('qty')),
+        array('data' => $display_item['product'], 'class' => array('products')),
+        array('data' => $display_item['total'], 'class' => array('price')),
+      );
+    }
+  }
+
+  // Add the subtotal as the final row.
+  if ($show_subtotal) {
+    $rows[] = array(
+      'data' => array(
+        // One cell
+        array(
+          'data' => array(
+            '#theme' => 'uc_price',
+            '#prefix' => '<span id="subtotal-title">' . t('Subtotal:') . '</span> ',
+            '#price' => $subtotal,
+          ),
+          // Cell attributes
+          'colspan' => 3,
+          'class' => array('subtotal'),
+        ),
+      ),
+      // Row attributes
+      'class' => array('subtotal'),
+    );
+  }
+
+  return '<div class="hidden-xs">' . theme('table', array('header' => $header, 'rows' => $rows, 'attributes' => array('class' => array('cart-review')))) . '</div>';
+}
+
+
+
+
+
+
+
+
+
+

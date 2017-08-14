@@ -1,0 +1,286 @@
+@standard: Times, Times New Roman, serif;
+@engravers: "EngraversGothicBT-Regular", Helvetica, Arial, sans-serif;
+
+html,
+body {
+    height: 100%;
+    overflow-x: hidden;
+	overflow-y: scroll; 
+	-webkit-overflow-scrolling: touch;
+}
+
+body {
+	background: #fff;
+	color: #000;
+	font-family: @standard;
+}
+
+.row-offcanvas{
+	min-height:100%;
+	margin-bottom:-85px;
+	&:after{
+		content:"";
+		display:block;
+		height:85px;
+	}
+}
+
+.main-container{
+	body.front &{
+		height:550px;
+		.tabs--primary{
+			position: relative;
+			z-index: 100;
+		}
+	}
+}
+
+a {
+	color: #000;
+	text-decoration: none;
+	&:hover {
+		text-decoration: none;
+		color: #000;
+	}
+}
+
+*:focus {
+    outline: 0 !important;
+}
+
+.carousel,
+.item,
+.active {
+    height: 100%;
+}
+
+.carousel.carousel-fade .item {
+  -webkit-transition: opacity 1s ease-in-out;
+  -moz-transition: opacity 1s ease-in-out;
+  -ms-transition: opacity 1s ease-in-out;
+  -o-transition: opacity 1s ease-in-out;
+  transition: opacity 1s ease-in-out;
+}
+.carousel.carousel-fade .active.left,
+.carousel.carousel-fade .active.right {
+  left: 0;
+  z-index: 2;
+  opacity: 0;
+  filter: alpha(opacity=0);
+}
+.carousel.carousel-fade .next,
+.carousel.carousel-fade .prev {
+	left: 0;
+	z-index: 1;
+}
+.carousel.carousel-fade .carousel-control {
+	position: static;
+  	z-index: 3;
+}
+
+.carousel-inner {
+    height: 100%;
+}
+
+.carousel-inner > .item > img, 
+.carousel-inner > .item > a > img{
+	margin: 0 auto;
+}
+
+.carousel-indicators {
+	bottom: 100px;
+	display:none !important;
+	li {
+	    border: 1px solid #231f20;
+	    background-color: #231f20; 
+  	}
+	.active {
+		border: 1px solid #ffefbb;
+		background-color: #ffefbb;
+	}
+}
+
+.carousel-control{
+	&.left,
+	&.right{
+		background-image: none;
+	}
+
+	&.left{
+		span{
+			left: -65px;
+			position: absolute;
+			top: 40%;
+		}
+	}
+	&.right{
+		span{
+			right: -65px;
+			position: absolute;
+			top: 40%;
+		}
+	}
+}
+
+.front .carousel-indicators {
+	bottom: -560px;
+}	
+
+.fill {
+	width: 100%;
+	height: 100%;  
+	position: fixed;
+	top: 0;
+	left: 0;
+	z-index: -1; 
+	background-repeat:no-repeat;
+	background-position: center center;
+	-webkit-background-size: cover;
+	-moz-background-size: cover;
+	-o-background-size: cover;
+	background-size: cover;
+}
+
+.pagination{
+	position: relative;
+	z-index: 100;
+	margin: 570px auto 0;
+	width: 100%;
+	text-align: center;
+	display:none !important;
+	a {
+		display: inline-block;
+		text-indent: -9999px;
+		text-align: center;
+		padding: 1px;
+		height: 12px;
+		width: 12px;
+		margin: 0 3px;
+		background: transparent url('../img/ellipse-large-01.png') center center no-repeat;
+		&.activeSlide{
+			background: transparent url('../img/ellipse-large-02.png') center center no-repeat;
+		}
+	}
+}
+
+p {
+	margin-bottom: 0;
+	font-family: @standard;
+	font-size: 14px;
+	line-height: 18px;
+	color: #000;
+}
+
+.grey-header {
+	font-family: @engravers;
+	color: #b1b1b3;
+	text-transform: uppercase;
+	font-size: 22px;
+	line-height: 24px;
+	margin-bottom: 20px;
+  	a{
+		color:#b1b1b3;
+		text-decoration:underline;
+	    &:hover{
+	      	color:#000;
+	    }
+  	}
+}
+
+.black-header {
+	font-family: @engravers;
+	color: #000;
+	text-transform: uppercase;
+	font-size: 18px;
+	line-height: 20px;
+	margin-bottom: 20px;
+}
+
+hr{
+	display:inline-block;
+	width: 312px;
+	margin-bottom: 20px;
+	color: #b1b1b3;
+	background-color: #b1b1b3;
+	height: 1px;
+	border:none;
+}
+
+.black-text {
+	font-family: @standard;
+	color: #000;
+	font-size: 18px;
+	text-align:center;
+	line-height: 24px;
+}
+
+.italic-black-text {
+	font-family: @standard;
+	color: #000;
+	font-size: 16px;
+	text-align:center;
+	line-height: 22px;
+	font-style: italic;
+}
+
+.blue-text {
+	font-family: @standard;
+	color: #2fbcb2;
+	font-size: 18px;
+	text-align:center;
+	line-height: 24px;
+}
+
+.grey-text {
+	font-family: @standard;
+	color: #b1b1b3;
+	font-size: 18px;
+	text-align:center;
+	line-height: 24px;
+	a{
+		color:#b1b1b3;
+		text-decoration:underline;
+		&:hover{
+		  	color:#000;
+		}
+	}
+}
+
+.btn-link{
+	color:#000;
+
+	&:hover,
+	&:focus{
+		color:#000;
+		text-decoration:none;
+	}
+}
+
+.form-submit{
+	&:focus,
+	&:active,
+	&:hover{
+		background-color:#000;
+		border-color:#000;
+	}
+}
+
+.form-control{
+	box-shadow: none;
+	border-radius: 2px;
+}
+
+div.error{
+	background-color:transparent;
+}
+
+// bootstrap table
+
+.table > thead > tr > th, 
+.table > tbody > tr > th, 
+.table > tfoot > tr > th, 
+.table > thead > tr > td, 
+.table > tbody > tr > td, 
+.table > tfoot > tr > td{
+	border-top: none;
+}
